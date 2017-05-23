@@ -1,0 +1,19 @@
+{
+  "name": "soa-demo-bid",
+  "version": "1.0.0",
+  "description": "",
+  "main": "service.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "author": "Jason Waag",
+  "license": "MIT",
+  "private": true,
+  "dependencies": {
+    "pg": "^6.1.5",
+    "pg-hstore": "^2.3.2",
+    "sequelize": "^3.30.4",
+    "soa-demo-token": "file:../soa-demo-token",
+    "soa-demo-service": "file:../soa-demo-service"
+  }
+}
