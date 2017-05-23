@@ -2,6 +2,9 @@
   "name": "soa-demo-bid",
   "version": "1.0.0",
   "description": "",
+  "engines": {
+    "node": "7.6"
+  },
   "main": "service.js",
   "scripts": {
     "test": "node test.js"
