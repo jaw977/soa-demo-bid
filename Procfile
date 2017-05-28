@@ -1,1 +1,1 @@
-web: node service.js --listen
+worker: node service.js

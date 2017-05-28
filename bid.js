@@ -1,5 +1,5 @@
 const {User,Listing,Bid} = require('./model.js');
-const Service = require('soa-demo-service');
+const Service = require('soa-demo-service-amqp');
 const authToken = require('soa-demo-token');
 
 var bidIncLevels = [
@@ -10,7 +10,9 @@ var bidIncLevels = [
 ];
 var amountPlusBidInc = amount => amount + bidIncLevels.find( lvl => ! lvl.lt || amount < lvl.lt ).inc;
 
-async function add({token, listingId, amount},{service,seneca}) {
+const service = new Service('bid');
+
+service.add('cmd:add', async ({token, listingId, amount}) => {
 	const user = authToken.verify(token);
 	if (! user) return {error:"Invalid Token."};
 
@@ -35,11 +37,11 @@ async function add({token, listingId, amount},{service,seneca}) {
 	
 	var trueBids = bids.filter(bid => bid);
 	var outbid = trueBids.length > 1 && trueBids.slice(-2)[0];
-	if (outbid) seneca.act({role:"bid", event:"outbid", userId:outbid.userId, listingId, nextBidAmount});
+	if (outbid) service.publish("outbid", {userId:outbid.userId, listingId, nextBidAmount});
 
 	delete winningBid.maxAmount;
 	return {winningBid};
-}
+});
 
 function getPrevBid(listingId) {
 	return Bid.findOne({where:{listingId},order:[['bidId','DESC']]});
@@ -54,24 +56,21 @@ function proxyBid (bids) {
 	return {userId:prevBid.userId, listingId:prevBid.listingId, amount, maxAmount:prevBid.maxAmount};
 }
 
-async function list({listingId}) {
+service.add('cmd:list', ({listingId}) => {
 	return Bid.findAll({
 		where:{listingId}, 
 		order:[['bidId','DESC']], 
 		attributes:['amount','createdAt'], 
 		include:[{model:User, attributes:['username']}]
 	});
-}
+});
 
-const service = new Service('bid');
-service.add('role:bid,cmd:add', add);
-service.add('role:bid,cmd:list', list);
-service.add('role:bid,_cmd:addUser', ({userId, username}) => User.create({userId, username}));
-service.add('role:bid,_cmd:addListing', ({listingId, sellerId, amount}) => Listing.create({listingId, sellerId, amount}));
+service.add('event:addUser', ({userId, username}) => User.create({userId, username}));
+service.add('event:addListing', ({listingId, sellerId, amount}) => Listing.create({listingId, sellerId, amount}));
 
 // TODO - create separate microservice to send email to buyer in response to outbid events.
 // For now, just log the outbid event message.
-service.add('role:bid,event:outbid', ({userId, listingId, nextBidAmount}) => 
+service.add('event:outbid', ({userId, listingId, nextBidAmount}) => 
 	console.log(`User ${userId} outbid on listing ${listingId}; new minimum bid is ${nextBidAmount}`));
 
 module.exports = service;
